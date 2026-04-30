@@ -5,12 +5,12 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import AbortFlow
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from erie_watertreatment.config_flow import (
+from custom_components.erie_watertreatment.config_flow import (
     ConfigFlow,
     InvalidData,
     _login_and_select_first_active_device,
 )
-from erie_watertreatment.const import (
+from custom_components.erie_watertreatment.const import (
     CONF_ACCESS_TOKEN,
     CONF_DEVICE_ID,
     CONF_EMAIL,
@@ -68,7 +68,7 @@ async def test_step_user_no_input_shows_form(hass):
 
 
 async def test_step_user_valid_credentials_creates_entry(hass, mock_erie_api):
-    with patch("erie_watertreatment.config_flow.ErieConnect", return_value=mock_erie_api):
+    with patch("custom_components.erie_watertreatment.config_flow.ErieConnect", return_value=mock_erie_api):
         flow = await _make_flow(hass)
         result = await flow.async_step_user(
             user_input={"email": "test@example.com", "password": "secret"}
@@ -84,7 +84,7 @@ async def test_step_user_missing_device_shows_error(hass):
     api = MagicMock()
     api.device = None
 
-    with patch("erie_watertreatment.config_flow.ErieConnect", return_value=api):
+    with patch("custom_components.erie_watertreatment.config_flow.ErieConnect", return_value=api):
         flow = await _make_flow(hass)
         result = await flow.async_step_user(
             user_input={"email": "test@example.com", "password": "bad"}
@@ -98,7 +98,7 @@ async def test_step_user_duplicate_device_aborted(hass, mock_erie_api):
     existing = MockConfigEntry(domain=DOMAIN, unique_id="device_123")
     existing.add_to_hass(hass)
 
-    with patch("erie_watertreatment.config_flow.ErieConnect", return_value=mock_erie_api):
+    with patch("custom_components.erie_watertreatment.config_flow.ErieConnect", return_value=mock_erie_api):
         flow = await _make_flow(hass)
         with pytest.raises(AbortFlow) as exc_info:
             await flow.async_step_user(

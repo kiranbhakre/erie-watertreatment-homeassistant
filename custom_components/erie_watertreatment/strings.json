@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Erie Water Treatment — Sign In",
+        "description": "Enter your Erie Connect (Pentair) account credentials.",
+        "data": {
+          "email": "Email address",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "missing_data": "Login failed or no active device found. Check your credentials."
+    },
+    "abort": {
+      "already_configured": "This Erie device is already configured."
+    }
+  }
+}

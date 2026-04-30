@@ -8,7 +8,7 @@ try:
 except ImportError:
     _HA_FRAMEWORK = False
 
-from erie_watertreatment.const import (
+from custom_components.erie_watertreatment.const import (
     CONF_ACCESS_TOKEN,
     CONF_CLIENT_ID,
     CONF_DEVICE_ID,

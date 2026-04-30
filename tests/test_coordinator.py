@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from erie_watertreatment import create_coordinator
-from erie_watertreatment.const import DOMAIN
+from custom_components.erie_watertreatment import create_coordinator
+from custom_components.erie_watertreatment.const import DOMAIN
 
 
 async def test_coordinator_parses_info_and_dashboard(hass, mock_erie_api, mock_config_entry):

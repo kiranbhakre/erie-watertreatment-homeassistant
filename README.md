@@ -1,185 +1,115 @@
-Erie Water Treatment IQSoft Home Assistant Integration 
-=========================================================
+# Erie Water Treatment IQ26 — Home Assistant Integration
 
-Erie Connect IQSoft experimental integration for Home Assistant (mainly for my own use and experiments).
-No support is given.
+A Home Assistant custom integration for Erie IQ26 water softeners that connect via the **Erie Connect** (Pentair) cloud API.
 
-Integration works by polling Erie Connect API every 90 seconds. It uses API client from this repo:
-https://github.com/tgebarowski/erie-connect
+> **Note:** This is a fork of [tgebarowski/erie-watertreatment-homeassistant](https://github.com/tgebarowski/erie-watertreatment-homeassistant) with additional sensors, binary sensors, device page support, and HACS compatibility.
 
-Installation
-------------
+---
 
-1. Copy erie_watertreatment directory to custom_components/ directory of your Home Assistant configuration
-2. In HomeAssistant choose Configuration | Integrations | Add (Orange + circle)
-3. In opened dialog search for Erie Watertreatment IQ26
-4. Provide login and password for Erie Connect 
-5. Upon successful login new sensor will be exposed
+## Installation
 
+### Option A — HACS (recommended)
 
-Sensors exposed by this integration
------------------------------------
+1. Open HACS in Home Assistant → **Integrations**.
+2. Click the three-dot menu → **Custom repositories**.
+3. Add `https://github.com/kiranbhakre/erie-watertreatment-homeassistant` as category **Integration**.
+4. Search for **Erie Water Treatment** and install.
+5. Restart Home Assistant.
 
-- sensor.erie_watertreatment_last_maintenance - Last maintenance timestamp
-- sensor.erie_watertreatment_last_regeneration - Last regeneration timestamp
-- sensor.erie_watertreatment_nr_regenerations - Total number of regenerations
-- sensor.erie_watertreatment_total_volume - Total volume since device installation (in liters)
-- sensor.erie_watertreatment_flow -  Water flow per time period sensor (in liters)
-- binary_sensor.erie_watertreatment_low_salt - True when low salt level detected
+### Option B — Manual
 
+1. Download or clone this repository.
+2. Copy the `custom_components/erie_watertreatment/` folder into your HA config directory:
+   ```
+   <ha-config>/custom_components/erie_watertreatment/
+   ```
+3. Restart Home Assistant.
 
-Exemplary template snippets
----------------------------
+---
 
-### water.yaml:
+## Setup
 
-```yaml
-- platform: template
-  sensors:
-    erie_watertreatment_last_maintenance_formatted_date:
-      friendly_name: Last Maintenance Date
-      value_template: >
-       {{ as_timestamp(states('sensor.erie_watertreatment_last_maintenance')) | timestamp_custom("%d/%m/%Y @ %H:%M:%S", True) }}
+1. Go to **Settings → Devices & Services → Add Integration**.
+2. Search for **Erie Water Treatment IQ26**.
+3. Enter your **Erie Connect** email and password.
+4. The integration discovers your device automatically.
 
-- platform: template
-  sensors:
-    erie_watertreatment_last_regeneration_formatted_date:
-      friendly_name: Last Regeneration Date
-      value_template: >
-       {{ as_timestamp(states('sensor.erie_watertreatment_last_regeneration')) | timestamp_custom("%d/%m/%Y @ %H:%M:%S", True) }}
+---
 
-- platform: template
-  sensors:
-    erie_watertreatment_time_until_maintenance:
-      friendly_name: Time Until Maintenance
-      value_template: >
-       {%- set days = (( as_timestamp(states('sensor.erie_watertreatment_last_maintenance')) + 3600 * 24 * 30 * 12 - as_timestamp(now()) )/ (3600*24)) | round(0, "ceil") -%}
-       {% if days > 30 %}
-       {{ (days / 30) | round(0, "ceil") }} months
-       {% elif days > 14 %}
-       {{ days }} days
-       {% else %}
-       {{ days }} days ❗️
-       {% endif %}
+## Sensors
+
+| Entity ID | Description | Unit |
+|---|---|---|
+| `sensor.erie_watertreatment_water_consumption` | Cumulative volume (Energy Dashboard) | L |
+| `sensor.erie_watertreatment_water_flow_rate` | Instantaneous flow rate | L/h |
+| `sensor.erie_watertreatment_flow` | Volume delta since last poll | L |
+| `sensor.erie_watertreatment_last_regeneration` | Last regeneration timestamp | — |
+| `sensor.erie_watertreatment_nr_regenerations` | Total regenerations (raw) | — |
+| `sensor.erie_watertreatment_last_maintenance` | Last maintenance date | — |
+| `sensor.erie_watertreatment_total_volume` | Total litres softened | L |
+| `sensor.erie_watertreatment_warnings` | Active warnings (formatted text) | — |
+| `sensor.erie_watertreatment_days_since_regeneration` | Days since last regen | d |
+| `sensor.erie_watertreatment_days_since_maintenance` | Days since last maintenance | d |
+| `sensor.erie_watertreatment_regeneration_count` | Total regen count (statistics) | — |
+| `sensor.erie_watertreatment_status_title` | Current status (e.g. "In Service") | — |
+| `sensor.erie_watertreatment_remaining_percentage` | Remaining softening capacity | % |
+| `sensor.erie_watertreatment_remaining_litres` | Remaining softening capacity | L |
+| `sensor.erie_watertreatment_days_remaining` | Days until next auto-regen | d |
+
+## Binary Sensors
+
+| Entity ID | Description |
+|---|---|
+| `binary_sensor.erie_watertreatment_low_salt` | On when a "salt" warning is active |
+| `binary_sensor.erie_watertreatment_filter_warning` | On when a "filter" warning is active |
+| `binary_sensor.erie_watertreatment_service_warning` | On when a "service" warning is active |
+| `binary_sensor.erie_watertreatment_error_warning` | On when an "error" warning is active |
+| `binary_sensor.erie_watertreatment_any_warning` | On when any warning is present |
+| `binary_sensor.erie_watertreatment_holiday_mode` | On when device is in bypass/holiday mode |
+
+---
+
+## Energy Dashboard
+
+`sensor.erie_watertreatment_water_consumption` uses `device_class: water` and `state_class: total_increasing` — add it directly in **Settings → Energy → Water** to get hourly/daily/monthly water graphs.
+
+---
+
+## Custom Templates & Lovelace Dashboard
+
+The `custom_templates/` folder contains ready-to-paste YAML:
+
+| File | Contents |
+|---|---|
+| `sensors.yaml` | Template sensors (formatted dates, daily average, etc.) |
+| `binary_sensors.yaml` | Template binary sensors (maintenance overdue, high flow alert) |
+| `automations.yaml` | Example automations (low salt notify, maintenance alert, etc.) |
+| `README.md` | Full entity reference + Lovelace dashboard YAML |
+
+See [`custom_templates/README.md`](custom_templates/README.md) for setup instructions and the full Lovelace dashboard.
+
+---
+
+## Requirements
+
+- Home Assistant 2023.1+
+- Erie Connect account (Pentair cloud)
+- [`erie-connect`](https://github.com/tgebarowski/erie-connect) Python package (installed automatically)
+
+---
+
+## Development & Tests
+
+```bash
+pip install -r requirements_test.txt
+pytest tests/ -v
 ```
 
-Exemplary Lovelace cards:
-------------------------
+All sensor and binary sensor logic is unit-tested without a running HA instance.
 
-### Infobox
+---
 
-<img src="https://github.com/tgebarowski/erie-watertreatment-homeassistant/blob/main/img/entities-card.png" width="500">
+## Credits
 
-```yaml
-cards:
-  entities:
-    - entity: sensor.erie_watertreatment_warnings
-      name: Warnings
-        - entity: sensor.erie_watertreatment_total_volume
-          name: Total water consumption
-          icon: mdi:water
-        - entity: sensor.erie_watertreatment_last_regeneration_formatted_date
-          name: Last regeneration
-          icon: mdi:calendar-clock
-        - entity: sensor.erie_watertreatment_nr_regenerations
-          name: Regenerations count
-          icon: mdi:recycle
-        - entity: sensor.erie_watertreatment_last_maintenance_formatted_date
-          name: Last service
-          icon: mdi:calendar-clock
-        - entity: sensor.erie_watertreatment_time_until_maintenance
-          name: Time till next service
-          icon: mdi:calendar-clock
-
-```
-
-### Displaying water consumption during last 7 days:
-
-<img src="https://github.com/tgebarowski/erie-watertreatment-homeassistant/blob/main/img/water-flow-week.png" width="700">
-
-```yaml
-cards:
-  - type: custom:mini-graph-card
-    entities:
-      - entity: sensor.erie_watertreatment_flow
-        icon: mdi:water
-        aggregate_func: sum
-        name: "Water consumption"
-    name: Daily water consumption (last 7 days)
-    hours_to_show: 168
-    group_by: date
-    show:
-      graph: bar
-      labels: true
-    color_thresholds:
-      - value: 0
-        color: "#f5fdff"
-      - value: 1
-        color: "#3295a8" 
-    style: |
-      ha-card {
-        --ha-card-border-radius: '8px';
-        --ha-card-border-size: '1px';
-        --ha-card-border-color: rgba(255, 255, 0, 0);
-        --ha-card-box-shadow: 'none';
-      }                 
-```
-
-### Displaying water consumption during last 24 hours:
-
-<img src="https://github.com/tgebarowski/erie-watertreatment-homeassistant/blob/main/img/water-flow-24hrs.png" width="700">
-
-
-```yaml
-cards:
-  - type: custom:mini-graph-card
-    entities:
-      - entity: sensor.erie_watertreatment_flow
-        aggregate_func: sum
-        name: "Water consumption"
-    name: Last 24 hours water consumption
-    hours_to_show: 24
-    group_by: hour
-    hour24: true
-    show:
-      graph: bar
-      labels: true
-    color_thresholds:
-      - value: 0
-        color: "#f5fdff"
-      - value: 1
-        color: "#3295a8"               
-    style: |
-     ha-card {
-        --ha-card-border-radius: '8px';
-        --ha-card-border-size: '1px';
-        --ha-card-border-color: rgba(255, 255, 0, 0);
-        --ha-card-box-shadow: 'none';
-     }  
-```
-
-Automations
------------
-
-### Notify when salt level is low (trigger at constant time)
-
-```yaml
-- alias: 'Low salt level in water softener'
-  trigger:
-    - platform: time
-      at: '18:30:00'
-  condition:
-    - condition: state
-      entity_id: binary_sensor.erie_watertreatment_low_salt
-      state: 'True'
-  action:
-    - service: script.notify_my_iphone
-      data:
-        message: "🧂 Low salt level in water softener"
-
-```
-
-Authors
--------
-
-This Home Assistant integration was written by [Tomasz Gebarowski](gebarowski@gmail.com).
+Original integration by [Tomasz Gebarowski](https://github.com/tgebarowski).  
+Extended with additional sensors, device page, and HACS support by [kiranbhakre](https://github.com/kiranbhakre).

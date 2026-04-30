@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from erie_watertreatment.binary_sensor import (
+from custom_components.erie_watertreatment.binary_sensor import (
     ErieAnyWarningBinarySensor,
     ErieHolidayModeBinarySensor,
     ErieLowSaltBinarySensor,

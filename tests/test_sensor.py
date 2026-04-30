@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from erie_watertreatment.sensor import (
+from custom_components.erie_watertreatment.sensor import (
     ErieDaysSinceMaintenanceSensor,
     ErieDaysSinceRegenerationSensor,
     ErieDaysRemainingSensor,
@@ -225,7 +225,7 @@ def test_days_since_regen_calculates_correct_value():
     # _BASE_DATA has last_regeneration = "2024-01-01T10:00:00"
     # Pin now to 10 days later
     fixed_now = datetime(2024, 1, 11, 10, 0, 0, tzinfo=timezone.utc)
-    with patch("erie_watertreatment.sensor.datetime") as mock_dt:
+    with patch("custom_components.erie_watertreatment.sensor.datetime") as mock_dt:
         mock_dt.fromisoformat.side_effect = datetime.fromisoformat
         mock_dt.now.return_value = fixed_now
         assert _regen_days_sensor().native_value == 10
@@ -277,7 +277,7 @@ def _maint_days_sensor(data=None):
 def test_days_since_maint_calculates_correct_value():
     # _BASE_DATA has last_maintenance = "2023-06-01"
     fixed_today = date(2023, 7, 1)  # 30 days later
-    with patch("erie_watertreatment.sensor.date") as mock_date:
+    with patch("custom_components.erie_watertreatment.sensor.date") as mock_date:
         mock_date.fromisoformat.side_effect = date.fromisoformat
         mock_date.today.return_value = fixed_today
         assert _maint_days_sensor().native_value == 30

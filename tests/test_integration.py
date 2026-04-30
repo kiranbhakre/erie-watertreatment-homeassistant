@@ -10,7 +10,7 @@ import os
 import pytest
 
 from erie_connect.client import ErieConnect
-from erie_watertreatment.config_flow import _login_and_select_first_active_device
+from custom_components.erie_watertreatment.config_flow import _login_and_select_first_active_device
 
 
 ERIE_EMAIL = os.environ.get("ERIE_EMAIL")
