@@ -6,8 +6,12 @@ import pytest
 from erie_watertreatment.sensor import (
     ErieDaysSinceMaintenanceSensor,
     ErieDaysSinceRegenerationSensor,
+    ErieDaysRemainingSensor,
     ErieRegenerationCountSensor,
+    ErieRemainingLitresSensor,
+    ErieRemainingPercentageSensor,
     ErieStatusSensor,
+    ErieStatusTitleSensor,
     ErieVolumeIncreaseSensor,
     ErieWarning,
     ErieWaterConsumptionSensor,
@@ -21,6 +25,11 @@ _BASE_DATA = {
     "last_maintenance": "2023-06-01",
     "total_volume": "5000",
     "warnings": [],
+    "status_title": "In Service",
+    "remaining_percentage": 98,
+    "remaining_litres": "394",
+    "days_remaining": 6,
+    "holiday_mode": False,
 }
 
 
@@ -346,3 +355,147 @@ def test_regen_count_no_unit():
 
 def test_regen_count_name():
     assert _regen_count_sensor().name == "Erie Regeneration Count"
+
+
+# ---------------------------------------------------------------------------
+# ErieStatusTitleSensor
+# ---------------------------------------------------------------------------
+
+def _status_title_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieStatusTitleSensor(c, "device_123")
+
+
+def test_status_title_returns_value():
+    assert _status_title_sensor().native_value == "In Service"
+
+
+def test_status_title_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieStatusTitleSensor(c, "device_123").native_value is None
+
+
+def test_status_title_none_when_key_missing():
+    data = {**_BASE_DATA, "status_title": None}
+    assert _status_title_sensor(data).native_value is None
+
+
+def test_status_title_unique_id():
+    assert _status_title_sensor().unique_id == "device_123_status_title"
+
+
+def test_status_title_name():
+    assert _status_title_sensor().name == "Erie Status"
+
+
+# ---------------------------------------------------------------------------
+# ErieRemainingPercentageSensor
+# ---------------------------------------------------------------------------
+
+def _pct_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieRemainingPercentageSensor(c, "device_123")
+
+
+def test_remaining_pct_returns_value():
+    assert _pct_sensor().native_value == 98
+
+
+def test_remaining_pct_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieRemainingPercentageSensor(c, "device_123").native_value is None
+
+
+def test_remaining_pct_none_when_key_missing():
+    data = {**_BASE_DATA, "remaining_percentage": None}
+    assert _pct_sensor(data).native_value is None
+
+
+def test_remaining_pct_unique_id():
+    assert _pct_sensor().unique_id == "device_123_remaining_percentage"
+
+
+def test_remaining_pct_unit():
+    assert _pct_sensor().native_unit_of_measurement == "%"
+
+
+def test_remaining_pct_name():
+    assert _pct_sensor().name == "Erie Remaining Capacity %"
+
+
+# ---------------------------------------------------------------------------
+# ErieRemainingLitresSensor
+# ---------------------------------------------------------------------------
+
+def _litres_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieRemainingLitresSensor(c, "device_123")
+
+
+def test_remaining_litres_returns_value():
+    assert _litres_sensor().native_value == 394
+
+
+def test_remaining_litres_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieRemainingLitresSensor(c, "device_123").native_value is None
+
+
+def test_remaining_litres_none_when_key_missing():
+    data = {**_BASE_DATA, "remaining_litres": None}
+    assert _litres_sensor(data).native_value is None
+
+
+def test_remaining_litres_unique_id():
+    assert _litres_sensor().unique_id == "device_123_remaining_litres"
+
+
+def test_remaining_litres_unit():
+    assert _litres_sensor().native_unit_of_measurement == "L"
+
+
+def test_remaining_litres_name():
+    assert _litres_sensor().name == "Erie Remaining Capacity L"
+
+
+# ---------------------------------------------------------------------------
+# ErieDaysRemainingSensor
+# ---------------------------------------------------------------------------
+
+def _days_remaining_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieDaysRemainingSensor(c, "device_123")
+
+
+def test_days_remaining_returns_value():
+    assert _days_remaining_sensor().native_value == 6
+
+
+def test_days_remaining_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieDaysRemainingSensor(c, "device_123").native_value is None
+
+
+def test_days_remaining_none_when_key_missing():
+    data = {**_BASE_DATA, "days_remaining": None}
+    assert _days_remaining_sensor(data).native_value is None
+
+
+def test_days_remaining_unique_id():
+    assert _days_remaining_sensor().unique_id == "device_123_days_remaining"
+
+
+def test_days_remaining_unit():
+    assert _days_remaining_sensor().native_unit_of_measurement == "d"
+
+
+def test_days_remaining_name():
+    assert _days_remaining_sensor().name == "Erie Days Until Regeneration"

@@ -36,6 +36,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ErieDaysSinceRegenerationSensor(coordinator, device_id),
         ErieDaysSinceMaintenanceSensor(coordinator, device_id),
         ErieRegenerationCountSensor(coordinator, device_id),
+        # Live status sensors from dashboard API
+        ErieStatusTitleSensor(coordinator, device_id),
+        ErieRemainingPercentageSensor(coordinator, device_id),
+        ErieRemainingLitresSensor(coordinator, device_id),
+        ErieDaysRemainingSensor(coordinator, device_id),
     ]
     async_add_entities(entities)
 
@@ -317,6 +322,141 @@ class ErieRegenerationCountSensor(SensorEntity):
             return None
         try:
             return int(self.coordinator.data["nr_regenerations"])
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+# ---------------------------------------------------------------------------
+# Live status sensors — sourced from dashboard API status block
+# ---------------------------------------------------------------------------
+
+class ErieStatusTitleSensor(SensorEntity):
+    """Current operational status title (e.g. 'In Service', 'Regenerating')."""
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_status_title"
+
+    @property
+    def name(self):
+        return "Erie Status"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.get("status_title")
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+class ErieRemainingPercentageSensor(SensorEntity):
+    """Remaining softening capacity as a percentage."""
+
+    _attr_native_unit_of_measurement = "%"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_remaining_percentage"
+
+    @property
+    def name(self):
+        return "Erie Remaining Capacity %"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        val = self.coordinator.data.get("remaining_percentage")
+        if val is None:
+            return None
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+class ErieRemainingLitresSensor(SensorEntity):
+    """Remaining softening capacity in litres."""
+
+    _attr_native_unit_of_measurement = "L"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_remaining_litres"
+
+    @property
+    def name(self):
+        return "Erie Remaining Capacity L"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        val = self.coordinator.data.get("remaining_litres")
+        if val is None:
+            return None
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+class ErieDaysRemainingSensor(SensorEntity):
+    """Days remaining until the next regeneration cycle (as reported by the device)."""
+
+    _attr_native_unit_of_measurement = "d"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_days_remaining"
+
+    @property
+    def name(self):
+        return "Erie Days Until Regeneration"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        val = self.coordinator.data.get("days_remaining")
+        if val is None:
+            return None
+        try:
+            return int(val)
         except (ValueError, TypeError):
             return None
 

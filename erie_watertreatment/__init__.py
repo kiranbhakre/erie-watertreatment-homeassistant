@@ -93,12 +93,19 @@ async def create_coordinator(hass, api, config_entry=None):
             async with async_timeout.timeout(120):
                 response = await hass.async_add_executor_job(api.info)
                 response_dashboard = await hass.async_add_executor_job(api.dashboard)
+            status = response_dashboard.content.get("status", {})
             return {
                 "last_regeneration": response.content["last_regeneration"],
                 "nr_regenerations": response.content["nr_regenerations"],
                 "last_maintenance": response.content["last_maintenance"],
                 "total_volume": response.content["total_volume"].split()[0],
                 "warnings": response_dashboard.content["warnings"],
+                # Status fields from dashboard
+                "status_title": status.get("title"),
+                "remaining_percentage": status.get("percentage"),
+                "remaining_litres": str(status.get("extra", "")).split()[0] if status.get("extra") else None,
+                "days_remaining": status.get("days_remaining"),
+                "holiday_mode": response_dashboard.content.get("holiday_mode", False),
             }
         except Exception:
             raise SensorUpdateFailed

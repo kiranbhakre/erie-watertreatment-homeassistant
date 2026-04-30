@@ -21,6 +21,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ErieWarningBinarySensor(coordinator, device_id, "error",   "error_warning"),
         # True when any warning is active
         ErieAnyWarningBinarySensor(coordinator, device_id),
+        # Holiday mode
+        ErieHolidayModeBinarySensor(coordinator, device_id),
     ])
 
 
@@ -108,3 +110,30 @@ class ErieAnyWarningBinarySensor(Entity):
         if data is None:
             return False
         return bool(data["warnings"])
+
+
+class ErieHolidayModeBinarySensor(Entity):
+    """True when the softener is in holiday (bypass) mode."""
+
+    def __init__(self, coordinator, device_id):
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_holiday_mode"
+
+    @property
+    def name(self):
+        return f"{DOMAIN}.holiday_mode"
+
+    @property
+    def device_class(self):
+        return "running"
+
+    @property
+    def state(self):
+        data = self.coordinator.data
+        if data is None:
+            return False
+        return bool(data.get("holiday_mode", False))

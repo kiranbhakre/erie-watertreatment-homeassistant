@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 from erie_watertreatment.binary_sensor import (
     ErieAnyWarningBinarySensor,
+    ErieHolidayModeBinarySensor,
     ErieLowSaltBinarySensor,
     ErieWarningBinarySensor,
 )
@@ -147,3 +148,33 @@ def test_any_warning_unique_id():
 
 def test_any_warning_device_class_is_problem():
     assert _any_sensor([]).device_class == "problem"
+
+
+# ---------------------------------------------------------------------------
+# ErieHolidayModeBinarySensor
+# ---------------------------------------------------------------------------
+
+def _holiday_sensor(holiday_mode, data_none=False):
+    c = MagicMock()
+    c.data = None if data_none else {"holiday_mode": holiday_mode, "warnings": []}
+    return ErieHolidayModeBinarySensor(c, "device_123")
+
+
+def test_holiday_mode_true_when_on():
+    assert _holiday_sensor(True).state is True
+
+
+def test_holiday_mode_false_when_off():
+    assert _holiday_sensor(False).state is False
+
+
+def test_holiday_mode_false_when_data_is_none():
+    assert _holiday_sensor(False, data_none=True).state is False
+
+
+def test_holiday_mode_unique_id():
+    assert _holiday_sensor(False).unique_id == "device_123_holiday_mode"
+
+
+def test_holiday_mode_device_class():
+    assert _holiday_sensor(False).device_class == "running"
