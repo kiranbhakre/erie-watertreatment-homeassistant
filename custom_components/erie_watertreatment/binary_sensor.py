@@ -75,7 +75,7 @@ class ErieLowSaltBinarySensor(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.{self.info_type}"
+        return "Erie Low Salt"
 
     @property
     def device_class(self):
@@ -131,7 +131,8 @@ class ErieWarningBinarySensor(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.{self._sensor_name}"
+        # Friendly name: "Erie Filter Warning", "Erie Service Warning", etc.
+        return "Erie " + self._sensor_name.replace("_", " ").title()
 
     @property
     def device_class(self):
@@ -176,7 +177,7 @@ class ErieAnyWarningBinarySensor(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.any_warning"
+        return "Erie Any Warning"
 
     @property
     def device_class(self):
@@ -220,7 +221,7 @@ class ErieHolidayModeBinarySensor(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.holiday_mode"
+        return "Erie Holiday Mode"
 
     @property
     def device_class(self):

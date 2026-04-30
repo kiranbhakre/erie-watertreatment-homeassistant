@@ -22,7 +22,7 @@ import logging
 from datetime import date, datetime, timezone
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import UnitOfVolume
+from homeassistant.const import EntityCategory, UnitOfVolume
 from homeassistant.helpers.entity import Entity
 
 from . import get_coordinator
@@ -243,7 +243,11 @@ class ErieVolumeIncreaseSensor(Entity):
     Unlike ErieWaterFlowRateSensor (which normalises to L/h), this sensor
     returns the raw litre delta observed during the last polling window.
     Kept for dashboards and automations that were built against it.
+    Grouped under Diagnostics on the device page (raw/legacy value).
     """
+
+    # Mark as diagnostic so it appears in the Diagnostics section on the device page
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, hass, coordinator, info_type, sensor_name, unit, device_id="", device_name=""):
         self.hass = hass
@@ -256,7 +260,8 @@ class ErieVolumeIncreaseSensor(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.{self.sensor_name}"
+        # Friendly name: "Erie Flow" (title-cased from sensor_name)
+        return "Erie " + self.sensor_name.replace("_", " ").title()
 
     @property
     def device_info(self):
@@ -310,7 +315,7 @@ class ErieWarning(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.{self.info_type}"
+        return "Erie Warnings"
 
     @property
     def device_info(self):
@@ -337,7 +342,11 @@ class ErieStatusSensor(Entity):
     Used for fields like last_regeneration, nr_regenerations, last_maintenance,
     and total_volume where no transformation is needed.  The info_type parameter
     selects the key from coordinator.data and also forms the entity name/ID.
+    Grouped under Diagnostics on the device page (raw/legacy values).
     """
+
+    # Mark as diagnostic so it appears in the Diagnostics section on the device page
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator, info_type, unit, device_id="", device_name=""):
         self.coordinator = coordinator
@@ -348,7 +357,8 @@ class ErieStatusSensor(Entity):
 
     @property
     def name(self):
-        return f"{DOMAIN}.{self.info_type}"
+        # Friendly name: "Erie Last Regeneration", "Erie Total Volume", etc.
+        return "Erie " + self.info_type.replace("_", " ").title()
 
     @property
     def device_info(self):
@@ -464,7 +474,10 @@ class ErieDaysSinceMaintenanceSensor(SensorEntity):
         if not raw:
             return None
         try:
-            maintenance_date = date.fromisoformat(raw)
+            # Strip any time component (e.g. "2023-06-01T00:00:00" → "2023-06-01")
+            # so date.fromisoformat() works correctly on both date and datetime strings.
+            date_str = str(raw).split("T")[0]
+            maintenance_date = date.fromisoformat(date_str)
             delta = date.today() - maintenance_date
             return max(0, delta.days)
         except (ValueError, TypeError):
