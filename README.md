@@ -149,6 +149,212 @@ This sensor uses `device_class: water` and `state_class: total_increasing`, whic
 
 ---
 
+## Lovelace Cards
+
+Copy-paste any of the cards below into **Dashboard → Edit → Add Card → Manual**.  
+> Verify entity IDs first: **Settings → Devices & Services → Erie Water Treatment IQ26 → entities**
+
+---
+
+### 1 — Full Dashboard (vertical stack — paste as one card)
+
+```yaml
+type: vertical-stack
+cards:
+
+  # ── Status & Capacity ───────────────────────────────────────────────────────
+  - type: entities
+    title: Erie Water Softener
+    icon: mdi:water-pump
+    entities:
+      - entity: sensor.erie_watertreatment_status_title
+        name: Status
+        icon: mdi:information-outline
+      - entity: sensor.erie_watertreatment_remaining_percentage
+        name: Remaining Capacity
+        icon: mdi:percent
+      - entity: sensor.erie_watertreatment_remaining_litres
+        name: Remaining Litres
+        icon: mdi:water
+      - entity: sensor.erie_watertreatment_days_remaining
+        name: Days Until Regeneration
+        icon: mdi:calendar-clock
+      - entity: binary_sensor.erie_watertreatment_holiday_mode
+        name: Holiday / Bypass Mode
+        icon: mdi:palm-tree
+
+  # ── Capacity gauge ──────────────────────────────────────────────────────────
+  - type: gauge
+    entity: sensor.erie_watertreatment_remaining_percentage
+    name: Softening Capacity
+    min: 0
+    max: 100
+    needle: true
+    severity:
+      green: 30
+      yellow: 15
+      red: 0
+
+  # ── Water Usage ─────────────────────────────────────────────────────────────
+  - type: entities
+    title: Water Usage
+    icon: mdi:water-pump
+    entities:
+      - entity: sensor.erie_watertreatment_water_consumption
+        name: Total Consumption (cumulative)
+        icon: mdi:counter
+      - entity: sensor.erie_watertreatment_water_flow_rate
+        name: Current Flow Rate
+        icon: mdi:waves-arrow-right
+
+  # ── Water usage history bar chart ───────────────────────────────────────────
+  - type: statistics-graph
+    title: Water Usage — Last 7 Days
+    entities:
+      - entity: sensor.erie_watertreatment_water_consumption
+        name: Water
+    stat_types:
+      - sum
+    period: day
+    days_to_show: 7
+    chart_type: bar
+
+  # ── Maintenance ─────────────────────────────────────────────────────────────
+  - type: entities
+    title: Maintenance
+    icon: mdi:wrench
+    entities:
+      - entity: sensor.erie_watertreatment_days_since_regeneration
+        name: Days Since Regeneration
+        icon: mdi:calendar-refresh
+      - entity: sensor.erie_watertreatment_days_since_maintenance
+        name: Days Since Maintenance
+        icon: mdi:calendar-check
+      - entity: sensor.erie_watertreatment_regeneration_count
+        name: Total Regenerations
+        icon: mdi:counter
+
+  # ── Warnings (shown only when active) ───────────────────────────────────────
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.erie_watertreatment_any_warning
+        state: "on"
+    card:
+      type: entities
+      title: Active Warnings
+      icon: mdi:alert
+      entities:
+        - entity: sensor.erie_watertreatment_warnings
+          name: Warning Details
+          icon: mdi:alert-circle
+
+  # ── Warning sensors glance ──────────────────────────────────────────────────
+  - type: glance
+    title: Warning Sensors
+    show_state: true
+    entities:
+      - entity: binary_sensor.erie_watertreatment_low_salt
+        name: Low Salt
+        icon: mdi:shaker-outline
+      - entity: binary_sensor.erie_watertreatment_filter_warning
+        name: Filter
+        icon: mdi:air-filter
+      - entity: binary_sensor.erie_watertreatment_service_warning
+        name: Service
+        icon: mdi:account-wrench
+      - entity: binary_sensor.erie_watertreatment_error_warning
+        name: Error
+        icon: mdi:alert-octagon
+      - entity: binary_sensor.erie_watertreatment_any_warning
+        name: Any Alert
+        icon: mdi:bell-alert
+```
+
+---
+
+### 2 — Status Glance (compact, single row)
+
+```yaml
+type: glance
+title: Erie Softener
+columns: 3
+entities:
+  - entity: sensor.erie_watertreatment_status_title
+    name: Status
+    icon: mdi:information-outline
+  - entity: sensor.erie_watertreatment_remaining_percentage
+    name: Capacity %
+    icon: mdi:percent
+  - entity: sensor.erie_watertreatment_days_remaining
+    name: Days Left
+    icon: mdi:calendar-clock
+  - entity: sensor.erie_watertreatment_water_flow_rate
+    name: Flow Rate
+    icon: mdi:waves-arrow-right
+  - entity: binary_sensor.erie_watertreatment_any_warning
+    name: Warnings
+    icon: mdi:bell-alert
+  - entity: binary_sensor.erie_watertreatment_holiday_mode
+    name: Holiday
+    icon: mdi:palm-tree
+```
+
+---
+
+### 3 — Capacity Gauge Only
+
+```yaml
+type: gauge
+entity: sensor.erie_watertreatment_remaining_percentage
+name: Softening Capacity
+unit: "%"
+min: 0
+max: 100
+needle: true
+severity:
+  green: 30
+  yellow: 15
+  red: 0
+```
+
+---
+
+### 4 — Water Consumption History (bar chart)
+
+```yaml
+type: statistics-graph
+title: Daily Water Usage
+entities:
+  - entity: sensor.erie_watertreatment_water_consumption
+    name: Water Consumed
+stat_types:
+  - sum
+period: day
+days_to_show: 30
+chart_type: bar
+```
+
+---
+
+### 5 — Warning Alert Banner (visible only when a warning is active)
+
+```yaml
+type: conditional
+conditions:
+  - condition: state
+    entity: binary_sensor.erie_watertreatment_any_warning
+    state: "on"
+card:
+  type: markdown
+  content: >
+    ## ⚠️ Erie Softener Warning
+
+    {{ states('sensor.erie_watertreatment_warnings') }}
+```
+
+---
+
 ## Custom Templates & Lovelace Dashboard
 
 The `custom_templates/` folder contains ready-to-paste YAML files:
@@ -190,7 +396,7 @@ pip install -r requirements_test.txt
 pytest tests/ -v
 ```
 
-113 unit tests cover all sensors and binary sensors. No running HA instance is needed — all tests use mocked coordinators.
+114 unit tests cover all sensors and binary sensors. No running HA instance is needed — all tests use mocked coordinators.
 
 ---
 
