@@ -12,7 +12,7 @@ A Home Assistant custom integration for Erie IQ26 water softeners that connect v
 
 1. Open HACS in Home Assistant → **Integrations**.
 2. Click the three-dot menu → **Custom repositories**.
-3. Add `https://github.com/kiranbhakre/erie-watertreatment-homeassistant` as category **Integration**.
+3. Add `https://github.com/kiranbhakre/erie-watertreatment` as category **Integration**.
 4. Search for **Erie Water Treatment** and install.
 5. Restart Home Assistant.
 

@@ -1,7 +1,7 @@
 {
   "name": "Erie Water Treatment IQ26",
   "category": "integration",
-  "documentation": "https://github.com/kiranbhakre/erie-watertreatment-homeassistant",
+  "documentation": "https://github.com/kiranbhakre/erie-watertreatment",
   "homeassistant": "2023.1.0",
   "iot_class": "cloud_polling"
 }
