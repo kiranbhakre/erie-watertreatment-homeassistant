@@ -6,7 +6,6 @@ import pytest
 from erie_watertreatment.sensor import (
     ErieDaysSinceMaintenanceSensor,
     ErieDaysSinceRegenerationSensor,
-    ErieNextRegenerationSensor,
     ErieRegenerationCountSensor,
     ErieStatusSensor,
     ErieVolumeIncreaseSensor,
@@ -254,53 +253,6 @@ def test_days_since_regen_state_class():
 
 def test_days_since_regen_name():
     assert _regen_days_sensor().name == "Erie Days Since Regeneration"
-
-
-# ---------------------------------------------------------------------------
-# ErieNextRegenerationSensor
-# ---------------------------------------------------------------------------
-
-def _next_regen_sensor(data=None):
-    c = MagicMock()
-    c.data = dict(_BASE_DATA) if data is None else data
-    return ErieNextRegenerationSensor(c, "device_123")
-
-
-def test_next_regen_calculates_countdown():
-    # last_regeneration = 2024-01-01, now = 2024-01-03 → days_since=2, REGEN_INTERVAL=7 → next=5
-    fixed_now = datetime(2024, 1, 3, 10, 0, 0, tzinfo=timezone.utc)
-    with patch("erie_watertreatment.sensor.datetime") as mock_dt:
-        mock_dt.fromisoformat.side_effect = datetime.fromisoformat
-        mock_dt.now.return_value = fixed_now
-        assert _next_regen_sensor().native_value == 5
-
-
-def test_next_regen_zero_when_overdue():
-    # days_since > REGEN_INTERVAL_DAYS → returns 0
-    fixed_now = datetime(2024, 1, 20, 10, 0, 0, tzinfo=timezone.utc)
-    with patch("erie_watertreatment.sensor.datetime") as mock_dt:
-        mock_dt.fromisoformat.side_effect = datetime.fromisoformat
-        mock_dt.now.return_value = fixed_now
-        assert _next_regen_sensor().native_value == 0
-
-
-def test_next_regen_none_when_no_data():
-    c = MagicMock()
-    c.data = None
-    assert ErieNextRegenerationSensor(c, "device_123").native_value is None
-
-
-def test_next_regen_none_for_invalid_timestamp():
-    data = {**_BASE_DATA, "last_regeneration": "bad-value"}
-    assert _next_regen_sensor(data).native_value is None
-
-
-def test_next_regen_unique_id():
-    assert _next_regen_sensor().unique_id == "device_123_next_regeneration_in"
-
-
-def test_next_regen_unit():
-    assert _next_regen_sensor().native_unit_of_measurement == "d"
 
 
 # ---------------------------------------------------------------------------

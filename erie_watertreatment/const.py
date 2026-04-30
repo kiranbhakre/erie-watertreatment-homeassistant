@@ -17,7 +17,3 @@ CONF_UID = "_conf_uid"
 CONF_EXPIRY = "_conf_expiry"
 CONF_DEVICE_ID = "_conf_device_id"
 CONF_DEVICE_NAME = "_conf_device_name"
-
-# Expected days between regeneration cycles (used by ErieNextRegenerationSensor).
-# Adjust this to match your softener's programmed regeneration schedule.
-REGEN_INTERVAL_DAYS = 7

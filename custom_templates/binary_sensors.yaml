@@ -29,13 +29,3 @@
     {{ flow > 500 }}
   icon: mdi:pipe-leak
 
-- name: "erie_regeneration_overdue_binary"
-  unique_id: "erie_regeneration_overdue_binary"
-  # Mirrors erie_regeneration_overdue sensor above but as a proper binary sensor.
-  # Threshold matches REGEN_INTERVAL_DAYS in const.py (default 7 days).
-  device_class: problem
-  state: >
-    {% set threshold = 7 %}
-    {% set days = states('sensor.erie_watertreatment_days_since_regeneration') | int(-1) %}
-    {{ days > threshold }}
-  icon: mdi:recycle-variant

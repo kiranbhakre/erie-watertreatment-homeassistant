@@ -12,7 +12,6 @@ from .const import (
     CONF_DEVICE_ID,
     COORDINATOR_UPDATE_INTERVAL,
     DOMAIN,
-    REGEN_INTERVAL_DAYS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,7 +34,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ErieWarning(coordinator),
         # Derived sensors — calculated from coordinator data, no extra API calls
         ErieDaysSinceRegenerationSensor(coordinator, device_id),
-        ErieNextRegenerationSensor(coordinator, device_id),
         ErieDaysSinceMaintenanceSensor(coordinator, device_id),
         ErieRegenerationCountSensor(coordinator, device_id),
     ]
@@ -250,45 +248,6 @@ class ErieDaysSinceRegenerationSensor(SensorEntity):
                 regen_dt = regen_dt.replace(tzinfo=timezone.utc)
             delta = datetime.now(tz=timezone.utc) - regen_dt
             return max(0, delta.days)
-        except (ValueError, TypeError):
-            return None
-
-    async def async_update(self):
-        await self.coordinator.async_request_refresh()
-
-
-class ErieNextRegenerationSensor(SensorEntity):
-    """Estimated days until the next regeneration cycle is due."""
-
-    _attr_native_unit_of_measurement = "d"
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, coordinator, device_id):
-        super().__init__()
-        self.coordinator = coordinator
-        self._device_id = device_id
-
-    @property
-    def unique_id(self):
-        return f"{self._device_id}_next_regeneration_in"
-
-    @property
-    def name(self):
-        return "Erie Next Regeneration In"
-
-    @property
-    def native_value(self):
-        if self.coordinator.data is None:
-            return None
-        raw = self.coordinator.data.get("last_regeneration")
-        if not raw:
-            return None
-        try:
-            regen_dt = datetime.fromisoformat(raw)
-            if regen_dt.tzinfo is None:
-                regen_dt = regen_dt.replace(tzinfo=timezone.utc)
-            days_since = (datetime.now(tz=timezone.utc) - regen_dt).days
-            return max(0, REGEN_INTERVAL_DAYS - days_since)
         except (ValueError, TypeError):
             return None
 
