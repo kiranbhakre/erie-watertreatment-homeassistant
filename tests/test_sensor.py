@@ -119,6 +119,10 @@ def test_flow_rate_unit():
     assert _flow_rate_sensor(0, 0).native_unit_of_measurement == "L/h"
 
 
+def test_flow_rate_device_class():
+    assert _flow_rate_sensor(0, 0).device_class == "volume_flow_rate"
+
+
 def test_flow_rate_state_class():
     assert _flow_rate_sensor(0, 0).state_class == "measurement"
 

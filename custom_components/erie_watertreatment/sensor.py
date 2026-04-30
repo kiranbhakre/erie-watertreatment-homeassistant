@@ -22,7 +22,7 @@ import logging
 from datetime import date, datetime, timezone
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import EntityCategory, UnitOfVolume
+from homeassistant.const import EntityCategory, UnitOfVolume, UnitOfVolumeFlowRate
 from homeassistant.helpers.entity import Entity
 
 from . import get_coordinator
@@ -183,8 +183,9 @@ class ErieWaterFlowRateSensor(SensorEntity):
     never shows a negative flow.
     """
 
+    _attr_device_class = SensorDeviceClass.VOLUME_FLOW_RATE
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = "L/h"
+    _attr_native_unit_of_measurement = UnitOfVolumeFlowRate.LITERS_PER_HOUR
     # Snapshot of the coordinator polling period — used to scale L→L/h
     _POLL_SECONDS = int(COORDINATOR_UPDATE_INTERVAL.total_seconds())
 
