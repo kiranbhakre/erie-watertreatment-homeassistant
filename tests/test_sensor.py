@@ -1,8 +1,13 @@
-from unittest.mock import MagicMock
+from datetime import date, datetime, timezone
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from erie_watertreatment.sensor import (
+    ErieDaysSinceMaintenanceSensor,
+    ErieDaysSinceRegenerationSensor,
+    ErieNextRegenerationSensor,
+    ErieRegenerationCountSensor,
     ErieStatusSensor,
     ErieVolumeIncreaseSensor,
     ErieWarning,
@@ -196,3 +201,196 @@ def test_warnings_sensor_none_when_no_data():
     c = MagicMock()
     c.data = None
     assert ErieWarning(c).state is None
+
+
+# ---------------------------------------------------------------------------
+# ErieDaysSinceRegenerationSensor
+# ---------------------------------------------------------------------------
+
+def _regen_days_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieDaysSinceRegenerationSensor(c, "device_123")
+
+
+def test_days_since_regen_calculates_correct_value():
+    # _BASE_DATA has last_regeneration = "2024-01-01T10:00:00"
+    # Pin now to 10 days later
+    fixed_now = datetime(2024, 1, 11, 10, 0, 0, tzinfo=timezone.utc)
+    with patch("erie_watertreatment.sensor.datetime") as mock_dt:
+        mock_dt.fromisoformat.side_effect = datetime.fromisoformat
+        mock_dt.now.return_value = fixed_now
+        assert _regen_days_sensor().native_value == 10
+
+
+def test_days_since_regen_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieDaysSinceRegenerationSensor(c, "device_123").native_value is None
+
+
+def test_days_since_regen_none_for_invalid_timestamp():
+    data = {**_BASE_DATA, "last_regeneration": "not-a-date"}
+    assert _regen_days_sensor(data).native_value is None
+
+
+def test_days_since_regen_never_negative():
+    data = {**_BASE_DATA, "last_regeneration": "2099-12-31T00:00:00"}
+    val = _regen_days_sensor(data).native_value
+    assert val is not None and val >= 0
+
+
+def test_days_since_regen_unique_id():
+    assert _regen_days_sensor().unique_id == "device_123_days_since_regeneration"
+
+
+def test_days_since_regen_unit():
+    assert _regen_days_sensor().native_unit_of_measurement == "d"
+
+
+def test_days_since_regen_state_class():
+    assert str(_regen_days_sensor().state_class) in ("measurement", "SensorStateClass.MEASUREMENT")
+
+
+def test_days_since_regen_name():
+    assert _regen_days_sensor().name == "Erie Days Since Regeneration"
+
+
+# ---------------------------------------------------------------------------
+# ErieNextRegenerationSensor
+# ---------------------------------------------------------------------------
+
+def _next_regen_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieNextRegenerationSensor(c, "device_123")
+
+
+def test_next_regen_calculates_countdown():
+    # last_regeneration = 2024-01-01, now = 2024-01-03 → days_since=2, REGEN_INTERVAL=7 → next=5
+    fixed_now = datetime(2024, 1, 3, 10, 0, 0, tzinfo=timezone.utc)
+    with patch("erie_watertreatment.sensor.datetime") as mock_dt:
+        mock_dt.fromisoformat.side_effect = datetime.fromisoformat
+        mock_dt.now.return_value = fixed_now
+        assert _next_regen_sensor().native_value == 5
+
+
+def test_next_regen_zero_when_overdue():
+    # days_since > REGEN_INTERVAL_DAYS → returns 0
+    fixed_now = datetime(2024, 1, 20, 10, 0, 0, tzinfo=timezone.utc)
+    with patch("erie_watertreatment.sensor.datetime") as mock_dt:
+        mock_dt.fromisoformat.side_effect = datetime.fromisoformat
+        mock_dt.now.return_value = fixed_now
+        assert _next_regen_sensor().native_value == 0
+
+
+def test_next_regen_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieNextRegenerationSensor(c, "device_123").native_value is None
+
+
+def test_next_regen_none_for_invalid_timestamp():
+    data = {**_BASE_DATA, "last_regeneration": "bad-value"}
+    assert _next_regen_sensor(data).native_value is None
+
+
+def test_next_regen_unique_id():
+    assert _next_regen_sensor().unique_id == "device_123_next_regeneration_in"
+
+
+def test_next_regen_unit():
+    assert _next_regen_sensor().native_unit_of_measurement == "d"
+
+
+# ---------------------------------------------------------------------------
+# ErieDaysSinceMaintenanceSensor
+# ---------------------------------------------------------------------------
+
+def _maint_days_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieDaysSinceMaintenanceSensor(c, "device_123")
+
+
+def test_days_since_maint_calculates_correct_value():
+    # _BASE_DATA has last_maintenance = "2023-06-01"
+    fixed_today = date(2023, 7, 1)  # 30 days later
+    with patch("erie_watertreatment.sensor.date") as mock_date:
+        mock_date.fromisoformat.side_effect = date.fromisoformat
+        mock_date.today.return_value = fixed_today
+        assert _maint_days_sensor().native_value == 30
+
+
+def test_days_since_maint_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieDaysSinceMaintenanceSensor(c, "device_123").native_value is None
+
+
+def test_days_since_maint_none_for_invalid_date():
+    data = {**_BASE_DATA, "last_maintenance": "garbage"}
+    assert _maint_days_sensor(data).native_value is None
+
+
+def test_days_since_maint_never_negative():
+    data = {**_BASE_DATA, "last_maintenance": "2099-01-01"}
+    val = _maint_days_sensor(data).native_value
+    assert val is not None and val >= 0
+
+
+def test_days_since_maint_unique_id():
+    assert _maint_days_sensor().unique_id == "device_123_days_since_maintenance"
+
+
+def test_days_since_maint_unit():
+    assert _maint_days_sensor().native_unit_of_measurement == "d"
+
+
+def test_days_since_maint_state_class():
+    assert str(_maint_days_sensor().state_class) in ("measurement", "SensorStateClass.MEASUREMENT")
+
+
+def test_days_since_maint_name():
+    assert _maint_days_sensor().name == "Erie Days Since Maintenance"
+
+
+# ---------------------------------------------------------------------------
+# ErieRegenerationCountSensor
+# ---------------------------------------------------------------------------
+
+def _regen_count_sensor(data=None):
+    c = MagicMock()
+    c.data = dict(_BASE_DATA) if data is None else data
+    return ErieRegenerationCountSensor(c, "device_123")
+
+
+def test_regen_count_returns_int():
+    assert _regen_count_sensor().native_value == 42
+
+
+def test_regen_count_none_when_no_data():
+    c = MagicMock()
+    c.data = None
+    assert ErieRegenerationCountSensor(c, "device_123").native_value is None
+
+
+def test_regen_count_none_for_invalid_value():
+    data = {**_BASE_DATA, "nr_regenerations": "N/A"}
+    assert _regen_count_sensor(data).native_value is None
+
+
+def test_regen_count_unique_id():
+    assert _regen_count_sensor().unique_id == "device_123_regeneration_count"
+
+
+def test_regen_count_state_class():
+    assert str(_regen_count_sensor().state_class) in ("total_increasing", "SensorStateClass.TOTAL_INCREASING")
+
+
+def test_regen_count_no_unit():
+    assert _regen_count_sensor().native_unit_of_measurement is None
+
+
+def test_regen_count_name():
+    assert _regen_count_sensor().name == "Erie Regeneration Count"

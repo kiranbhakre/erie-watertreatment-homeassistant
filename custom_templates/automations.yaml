@@ -1,0 +1,93 @@
+# Erie Water Treatment — Example Automations
+# ============================================
+# Paste under your automations: block or import via !include_dir_merge_list.
+# Replace "notify.mobile_app_yourphone" with your actual notification target.
+# Find your notify service name at: Settings > Devices & Services > Notifications
+
+# 1. Notify when Low Salt warning becomes active
+- id: "erie_notify_low_salt"
+  alias: "Erie: Low Salt Warning"
+  description: "Notify when the softener reports low salt"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.erie_watertreatment_low_salt
+      to: "True"
+  condition: []
+  action:
+    - service: notify.mobile_app_yourphone
+      data:
+        title: "Erie Softener — Low Salt"
+        message: >
+          The water softener is low on salt.
+          Please refill the brine tank.
+        data:
+          tag: "erie_low_salt"
+  mode: single
+
+# 2. Notify once per day while maintenance is overdue (yearly reminder)
+- id: "erie_notify_maintenance_overdue"
+  alias: "Erie: Maintenance Overdue"
+  description: "Notify once per day at 08:00 while maintenance is overdue"
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  condition:
+    - condition: state
+      entity_id: binary_sensor.erie_maintenance_overdue
+      state: "on"
+  action:
+    - service: notify.mobile_app_yourphone
+      data:
+        title: "Erie Softener — Maintenance Due"
+        message: >
+          Your water softener is overdue for servicing.
+          Last maintenance: {{ states('sensor.erie_last_maintenance_formatted') }}
+          ({{ states('sensor.erie_watertreatment_days_since_maintenance') }} days ago)
+        data:
+          tag: "erie_maintenance_overdue"
+  mode: single
+
+# 3. Notify on sustained high flow rate (possible burst pipe or leak)
+- id: "erie_notify_high_flow"
+  alias: "Erie: High Flow Rate Alert"
+  description: "Alert on sustained high flow rate suggesting a burst pipe"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.erie_high_flow_alert
+      to: "on"
+  condition: []
+  action:
+    - service: notify.mobile_app_yourphone
+      data:
+        title: "Erie — Possible Water Leak"
+        message: >
+          High water flow detected: {{ states('sensor.erie_watertreatment_water_flow_rate') }} L/h.
+          Check for a burst pipe or stuck valve.
+        data:
+          tag: "erie_high_flow"
+          priority: high
+  mode: single
+
+# 4. Notify after each completed regeneration cycle
+- id: "erie_notify_regeneration_complete"
+  alias: "Erie: Regeneration Cycle Complete"
+  description: "Notify when the regeneration count increments (new cycle finished)"
+  trigger:
+    - platform: state
+      entity_id: sensor.erie_watertreatment_regeneration_count
+  condition:
+    - condition: template
+      value_template: >
+        {% set old = trigger.from_state.state | int(-1) %}
+        {% set new = trigger.to_state.state  | int(-1) %}
+        {{ new > old and old >= 0 }}
+  action:
+    - service: notify.mobile_app_yourphone
+      data:
+        title: "Erie — Regeneration Complete"
+        message: >
+          Regeneration cycle #{{ states('sensor.erie_watertreatment_regeneration_count') }} complete.
+          Next cycle due in approx. {{ states('sensor.erie_watertreatment_next_regeneration_in') }} day(s).
+        data:
+          tag: "erie_regeneration"
+  mode: single

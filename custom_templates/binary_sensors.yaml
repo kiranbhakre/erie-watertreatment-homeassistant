@@ -1,0 +1,41 @@
+# Erie Water Treatment — Template Binary Sensors
+# ================================================
+# Paste under:
+#
+#   template:
+#     - binary_sensor:
+#       - name: "erie_maintenance_overdue"
+#         ...
+
+- name: "erie_maintenance_overdue"
+  unique_id: "erie_maintenance_overdue"
+  device_class: problem
+  state: >
+    {% set days = states('sensor.erie_watertreatment_days_since_maintenance') | int(-1) %}
+    {{ days > 365 }}
+  icon: mdi:wrench-clock
+
+- name: "erie_high_flow_alert"
+  unique_id: "erie_high_flow_alert"
+  # Threshold: 500 L/h — adjust to your household's peak normal flow.
+  # Triggers on possible burst pipe or stuck valve.
+  # delay_on ensures the spike must last 60 s before the sensor turns on,
+  # avoiding false alerts from short high-flow events (e.g. filling a bath).
+  device_class: problem
+  delay_on:
+    seconds: 60
+  state: >
+    {% set flow = states('sensor.erie_watertreatment_water_flow_rate') | float(0) %}
+    {{ flow > 500 }}
+  icon: mdi:pipe-leak
+
+- name: "erie_regeneration_overdue_binary"
+  unique_id: "erie_regeneration_overdue_binary"
+  # Mirrors erie_regeneration_overdue sensor above but as a proper binary sensor.
+  # Threshold matches REGEN_INTERVAL_DAYS in const.py (default 7 days).
+  device_class: problem
+  state: >
+    {% set threshold = 7 %}
+    {% set days = states('sensor.erie_watertreatment_days_since_regeneration') | int(-1) %}
+    {{ days > threshold }}
+  icon: mdi:recycle-variant

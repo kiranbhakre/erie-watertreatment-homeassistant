@@ -1,0 +1,96 @@
+# Erie Water Treatment — Template Sensors
+# =========================================
+# Paste this block inside your configuration.yaml under:
+#
+#   template:
+#     - sensor:
+#       - name: "erie_last_regeneration_formatted"
+#         ...
+#
+# OR use a package include if you use split config.
+#
+# Prerequisites — these entity IDs must exist (created by the Python integration):
+#   sensor.erie_watertreatment_last_regeneration
+#   sensor.erie_watertreatment_last_maintenance
+#   sensor.erie_watertreatment_total_volume
+#   sensor.erie_watertreatment_days_since_regeneration
+#   sensor.erie_watertreatment_days_since_maintenance
+
+- name: "erie_last_regeneration_formatted"
+  unique_id: "erie_last_regeneration_formatted"
+  state: >
+    {% set raw = states('sensor.erie_watertreatment_last_regeneration') %}
+    {% if raw in ('unknown', 'unavailable', '') %}
+      Unknown
+    {% else %}
+      {{ as_timestamp(raw) | timestamp_custom('%d %b %Y %H:%M', true) }}
+    {% endif %}
+  icon: mdi:recycle
+
+- name: "erie_last_maintenance_formatted"
+  unique_id: "erie_last_maintenance_formatted"
+  state: >
+    {% set raw = states('sensor.erie_watertreatment_last_maintenance') %}
+    {% if raw in ('unknown', 'unavailable', '') %}
+      Unknown
+    {% else %}
+      {{ as_timestamp(raw) | timestamp_custom('%d %b %Y', true) }}
+    {% endif %}
+  icon: mdi:tools
+
+- name: "erie_days_since_regeneration"
+  unique_id: "erie_days_since_regeneration_template"
+  # YAML fallback — use the Python sensor (sensor.erie_watertreatment_days_since_regeneration)
+  # directly if available. This template version works without the Python changes.
+  unit_of_measurement: "d"
+  state_class: measurement
+  state: >
+    {% set raw = states('sensor.erie_watertreatment_last_regeneration') %}
+    {% if raw in ('unknown', 'unavailable', '') %}
+      {{ none }}
+    {% else %}
+      {{ ((now().timestamp() - as_timestamp(raw)) / 86400) | int }}
+    {% endif %}
+  icon: mdi:clock-outline
+
+- name: "erie_days_since_maintenance"
+  unique_id: "erie_days_since_maintenance_template"
+  unit_of_measurement: "d"
+  state_class: measurement
+  state: >
+    {% set raw = states('sensor.erie_watertreatment_last_maintenance') %}
+    {% if raw in ('unknown', 'unavailable', '') %}
+      {{ none }}
+    {% else %}
+      {{ ((now().timestamp() - as_timestamp(raw)) / 86400) | int }}
+    {% endif %}
+  icon: mdi:clock-outline
+
+- name: "erie_avg_litres_per_day"
+  unique_id: "erie_avg_litres_per_day"
+  unit_of_measurement: "L/day"
+  state_class: measurement
+  state: >
+    {% set total = states('sensor.erie_watertreatment_total_volume') | float(0) %}
+    {% set days  = states('sensor.erie_watertreatment_days_since_maintenance') | float(0) %}
+    {% if days > 0 %}
+      {{ (total / days) | round(1) }}
+    {% else %}
+      {{ none }}
+    {% endif %}
+  icon: mdi:water
+
+- name: "erie_regeneration_overdue"
+  unique_id: "erie_regeneration_overdue"
+  # Change threshold to match your softener's programmed regeneration schedule.
+  state: >
+    {% set threshold = 7 %}
+    {% set days = states('sensor.erie_watertreatment_days_since_regeneration') | int(-1) %}
+    {% if days < 0 %}
+      unknown
+    {% elif days > threshold %}
+      'true'
+    {% else %}
+      'false'
+    {% endif %}
+  icon: mdi:alert-circle

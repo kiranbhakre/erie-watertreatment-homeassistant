@@ -1,5 +1,6 @@
 """Erie Water Treatment sensors."""
 import logging
+from datetime import date, datetime, timezone
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import UnitOfVolume
@@ -11,6 +12,7 @@ from .const import (
     CONF_DEVICE_ID,
     COORDINATOR_UPDATE_INTERVAL,
     DOMAIN,
+    REGEN_INTERVAL_DAYS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +33,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ErieStatusSensor(coordinator, "last_maintenance", ""),
         ErieStatusSensor(coordinator, "total_volume", "L"),
         ErieWarning(coordinator),
+        # Derived sensors — calculated from coordinator data, no extra API calls
+        ErieDaysSinceRegenerationSensor(coordinator, device_id),
+        ErieNextRegenerationSensor(coordinator, device_id),
+        ErieDaysSinceMaintenanceSensor(coordinator, device_id),
+        ErieRegenerationCountSensor(coordinator, device_id),
     ]
     async_add_entities(entities)
 
@@ -205,3 +212,154 @@ class ErieStatusSensor(Entity):
     @property
     def unit_of_measurement(self):
         return self.unit
+
+
+# ---------------------------------------------------------------------------
+# Derived sensors — calculated from coordinator data, no extra API calls
+# ---------------------------------------------------------------------------
+
+class ErieDaysSinceRegenerationSensor(SensorEntity):
+    """Number of whole days elapsed since the last regeneration cycle."""
+
+    _attr_native_unit_of_measurement = "d"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_days_since_regeneration"
+
+    @property
+    def name(self):
+        return "Erie Days Since Regeneration"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        raw = self.coordinator.data.get("last_regeneration")
+        if not raw:
+            return None
+        try:
+            regen_dt = datetime.fromisoformat(raw)
+            if regen_dt.tzinfo is None:
+                regen_dt = regen_dt.replace(tzinfo=timezone.utc)
+            delta = datetime.now(tz=timezone.utc) - regen_dt
+            return max(0, delta.days)
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+class ErieNextRegenerationSensor(SensorEntity):
+    """Estimated days until the next regeneration cycle is due."""
+
+    _attr_native_unit_of_measurement = "d"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_next_regeneration_in"
+
+    @property
+    def name(self):
+        return "Erie Next Regeneration In"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        raw = self.coordinator.data.get("last_regeneration")
+        if not raw:
+            return None
+        try:
+            regen_dt = datetime.fromisoformat(raw)
+            if regen_dt.tzinfo is None:
+                regen_dt = regen_dt.replace(tzinfo=timezone.utc)
+            days_since = (datetime.now(tz=timezone.utc) - regen_dt).days
+            return max(0, REGEN_INTERVAL_DAYS - days_since)
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+class ErieDaysSinceMaintenanceSensor(SensorEntity):
+    """Number of whole days elapsed since the last service maintenance."""
+
+    _attr_native_unit_of_measurement = "d"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_days_since_maintenance"
+
+    @property
+    def name(self):
+        return "Erie Days Since Maintenance"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        raw = self.coordinator.data.get("last_maintenance")
+        if not raw:
+            return None
+        try:
+            maintenance_date = date.fromisoformat(raw)
+            delta = date.today() - maintenance_date
+            return max(0, delta.days)
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+class ErieRegenerationCountSensor(SensorEntity):
+    """Total number of regeneration cycles since installation."""
+
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_native_unit_of_measurement = None
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_regeneration_count"
+
+    @property
+    def name(self):
+        return "Erie Regeneration Count"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        try:
+            return int(self.coordinator.data["nr_regenerations"])
+        except (ValueError, TypeError):
+            return None
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
