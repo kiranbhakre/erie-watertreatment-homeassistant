@@ -1,63 +1,126 @@
+"""Erie Water Treatment sensors."""
 import logging
-import voluptuous as vol
-import async_timeout
 
-import homeassistant.helpers.config_validation as cv
-# Import the device class from the component that you want to support
-from homeassistant.const import CONF_HOST, CONF_ACCESS_TOKEN, CONF_USERNAME
-
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
-from homeassistant.const import (
-    CONF_ACCESS_TOKEN,
-)
-from homeassistant import exceptions
-from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.typing import HomeAssistantType
-from homeassistant.helpers import entity
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.const import UnitOfVolume
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_component import EntityComponent
-from datetime import timedelta
-from erie_connect.client import ErieConnect
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
 from . import get_coordinator
-
-
 from .const import (
-    DOMAIN,
-    SCAN_INTERVAL,
-    CONF_EMAIL,
-    CONF_PASSWORD,
-    CONF_ACCESS_TOKEN,
-    CONF_CLIENT_ID,
-    CONF_UID,
-    CONF_EXPIRY,
     CONF_DEVICE_ID,
-    CONF_DEVICE_NAME
+    COORDINATOR_UPDATE_INTERVAL,
+    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
-urllib3_logger = logging.getLogger('urllib3')
-urllib3_logger.setLevel(logging.CRITICAL)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    _LOGGER.debug(f'{DOMAIN}: sensor: async_setup_entry: {entry}')
+    _LOGGER.debug(f"{DOMAIN}: sensor: async_setup_entry: {entry}")
 
     coordinator = await get_coordinator(hass)
+    device_id = entry.data[CONF_DEVICE_ID]
 
-    entities = [ErieVolumeIncreaseSensor(hass, coordinator, "total_volume", "flow", "L"),
-                ErieStatusSensor(coordinator, "last_regeneration", ""),
-                ErieStatusSensor(coordinator, "nr_regenerations", ""),
-                ErieStatusSensor(coordinator, "last_maintenance", ""),
-                ErieStatusSensor(coordinator, "total_volume", "L"),
-                ErieWarning(coordinator)]
-
+    entities = [
+        ErieWaterConsumptionSensor(coordinator, device_id),
+        ErieWaterFlowRateSensor(hass, coordinator, device_id),
+        ErieVolumeIncreaseSensor(hass, coordinator, "total_volume", "flow", "L"),
+        ErieStatusSensor(coordinator, "last_regeneration", ""),
+        ErieStatusSensor(coordinator, "nr_regenerations", ""),
+        ErieStatusSensor(coordinator, "last_maintenance", ""),
+        ErieStatusSensor(coordinator, "total_volume", "L"),
+        ErieWarning(coordinator),
+    ]
     async_add_entities(entities)
 
+
+# ---------------------------------------------------------------------------
+# Energy Dashboard sensor — cumulative total (device_class=water)
+# ---------------------------------------------------------------------------
+
+class ErieWaterConsumptionSensor(SensorEntity):
+    """Cumulative water consumption — compatible with HA Energy Dashboard."""
+
+    _attr_device_class = SensorDeviceClass.WATER
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_native_unit_of_measurement = UnitOfVolume.LITERS
+
+    def __init__(self, coordinator, device_id):
+        super().__init__()
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_water_consumption"
+
+    @property
+    def name(self):
+        return "Erie Water Consumption"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return None
+        return int(self.coordinator.data["total_volume"])
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+# ---------------------------------------------------------------------------
+# Flow-rate sensor — instantaneous L/h (normal dashboard card)
+# ---------------------------------------------------------------------------
+
+class ErieWaterFlowRateSensor(SensorEntity):
+    """Instantaneous water usage rate in L/h."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "L/h"
+    _POLL_SECONDS = int(COORDINATOR_UPDATE_INTERVAL.total_seconds())
+
+    def __init__(self, hass, coordinator, device_id):
+        super().__init__()
+        self.hass = hass
+        self.coordinator = coordinator
+        self._device_id = device_id
+
+    @property
+    def unique_id(self):
+        return f"{self._device_id}_water_flow_rate"
+
+    @property
+    def name(self):
+        return "Erie Water Flow Rate"
+
+    @property
+    def native_value(self):
+        if self.coordinator.data is None:
+            return 0
+        new_total = int(self.coordinator.data["total_volume"])
+        old_state = self.hass.states.get(f"sensor.{DOMAIN}_total_volume")
+        if old_state is None or old_state.state in ("unknown", "unavailable"):
+            return 0
+        try:
+            old_total = int(old_state.state)
+        except (ValueError, TypeError):
+            return 0
+        delta = max(0, new_total - old_total)
+        return round(delta * (3600 / self._POLL_SECONDS), 1)
+
+    async def async_update(self):
+        await self.coordinator.async_request_refresh()
+
+
+# ---------------------------------------------------------------------------
+# Legacy sensors (plain Entity — kept for backward compatibility)
+# ---------------------------------------------------------------------------
+
 class ErieVolumeIncreaseSensor(Entity):
+    """Delta volume sensor — difference since last poll."""
 
     def __init__(self, hass, coordinator, info_type, sensor_name, unit):
-        """Initialize the sensor."""
         self.hass = hass
         self.coordinator = coordinator
         self.info_type = info_type
@@ -66,96 +129,79 @@ class ErieVolumeIncreaseSensor(Entity):
 
     @property
     def name(self):
-        """Return the name of the sensor."""
-        return f'{DOMAIN}.{self.sensor_name}'
+        return f"{DOMAIN}.{self.sensor_name}"
 
     @property
     def state(self):
-        """Return the state of the sensor."""
-        sensor_name = f'sensor.{DOMAIN}_{self.info_type}'
-        old_state = self.hass.states.get(f'{sensor_name}')
-        _LOGGER.debug(f'{sensor_name}: sensor: state: {self.coordinator.data} old_state: {old_state}')
-        if self.coordinator.data != None and self.info_type in self.coordinator.data and old_state != None:
-            old_value = self.get_int_from_sensor_value(old_state.state)
-            new_value = self.get_int_from_sensor_value(self.coordinator.data[self.info_type])
-            flow = new_value - old_value
-        else:
-            flow = 0
-        return flow
+        sensor_entity_id = f"sensor.{DOMAIN}_{self.info_type}"
+        old_state = self.hass.states.get(sensor_entity_id)
+        _LOGGER.debug(f"{sensor_entity_id}: data={self.coordinator.data} old={old_state}")
+        if self.coordinator.data and self.info_type in self.coordinator.data and old_state:
+            old_value = self._to_int(old_state.state)
+            new_value = self._to_int(self.coordinator.data[self.info_type])
+            return new_value - old_value
+        return 0
 
     @property
     def unit_of_measurement(self):
-        """Return the unit of measurement."""
         return self.unit
 
     @property
     def state_class(self):
-        """Returns state_class"""
-        return "total_increasing"
+        # Delta value — fluctuates up and down, so MEASUREMENT is correct
+        return "measurement"
 
-    def get_int_from_sensor_value(self, string_value):
-        if string_value != None:
-            return int(string_value.split()[0])
-        return None
+    def _to_int(self, value):
+        if value is not None:
+            return int(str(value).split()[0])
+        return 0
 
     async def async_update(self):
-        """Update the entity.
-
-        Only used by the generic entity update service.
-        """
         await self.coordinator.async_request_refresh()
 
+
 class ErieWarning(Entity):
-    """Representation of a sensor."""    
+    """Active warnings as a formatted string."""
+
     def __init__(self, coordinator):
-        """Initialize the sensor."""
         self.coordinator = coordinator
         self.info_type = "warnings"
 
     @property
     def name(self):
-        """Return the name of the sensor."""
-        return f'{DOMAIN}.{self.info_type}'
+        return f"{DOMAIN}.{self.info_type}"
 
     @property
     def state(self):
-        """Return the state of the sensor."""
+        _LOGGER.debug(f"{DOMAIN}: sensor: state: {self.coordinator.data}")
+        if self.coordinator.data is None:
+            return None
+        warning_string = "".join(
+            f"⚠️ {w['description']}\n"
+            for w in self.coordinator.data[self.info_type]
+        )
+        return warning_string or None
 
-        _LOGGER.debug(f'{DOMAIN}: sensor: state: {self.coordinator.data}')
-        status = self.coordinator.data
-        if status != None:
-            warning_string = ""
-            for warning in status[self.info_type]:
-                warning_string += "⚠️ " + warning["description"] + "\n"
-            return warning_string if warning_string != "" else None
-        return None
 
 class ErieStatusSensor(Entity):
-    """Representation of a sensor."""    
+    """Read-only status value from the coordinator."""
+
     def __init__(self, coordinator, info_type, unit):
-        """Initialize the sensor."""
         self.coordinator = coordinator
         self.info_type = info_type
         self.unit = unit
 
     @property
     def name(self):
-        """Return the name of the sensor."""
-        return f'{DOMAIN}.{self.info_type}'
+        return f"{DOMAIN}.{self.info_type}"
 
     @property
     def state(self):
-        """Return the state of the sensor."""
-
-        _LOGGER.debug(f'{DOMAIN}: sensor: state: {self.coordinator.data}')
-        status = self.coordinator.data
-        if status != None:
-            return status[self.info_type]
+        _LOGGER.debug(f"{DOMAIN}: sensor: state: {self.coordinator.data}")
+        if self.coordinator.data is not None:
+            return self.coordinator.data[self.info_type]
         return None
 
     @property
     def unit_of_measurement(self):
-        """Return the unit of measurement."""
         return self.unit
-
-

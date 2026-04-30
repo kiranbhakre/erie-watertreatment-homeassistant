@@ -28,7 +28,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Erie Watertreatment IQ26."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     _options = None
 
@@ -45,7 +44,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         email = user_input["email"]
         password = user_input["password"]
 
-        _LOGGER.warn(f'{DOMAIN}: erie_connect create for {email}')
+        _LOGGER.warning(f'{DOMAIN}: erie_connect create for {email}')
 
         self.api = ErieConnect(email, password)
 
@@ -57,7 +56,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "missing_data"
 
         if errors:
-            _LOGGER.warn(f'{DOMAIN}: Errors {errors}')
+            _LOGGER.warning(f'{DOMAIN}: Errors {errors}')
             return await self._show_setup_form(user_input, errors)            
 
         # Check if already configured
@@ -84,7 +83,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not user_input:
             user_input = {}
 
-        _LOGGER.warn(f'{DOMAIN}: Show Setup Form: {user_input}')
+        _LOGGER.warning(f'{DOMAIN}: Show Setup Form: {user_input}')
 
         schema: Dict[str, type] = OrderedDict()
         schema["email"] = str

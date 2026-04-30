@@ -5,7 +5,7 @@ OPTION_EMAIL = "__email"
 
 DOMAIN = "erie_watertreatment"
 BASE_NAME = "Erie"
-SCAN_INTERVAL = timedelta(seconds=90)
+COORDINATOR_UPDATE_INTERVAL = timedelta(seconds=120)
 COORDINATOR = "coordinator"
 API = "api"
 
