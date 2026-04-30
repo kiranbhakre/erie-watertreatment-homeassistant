@@ -99,6 +99,8 @@ async def create_coordinator(hass, api, config_entry=None):
                 "nr_regenerations": response.content["nr_regenerations"],
                 "last_maintenance": response.content["last_maintenance"],
                 "total_volume": response.content["total_volume"].split()[0],
+                "serial": response.content.get("serial"),
+                "software": str(response.content.get("software", "")).strip(),
                 "warnings": response_dashboard.content["warnings"],
                 # Status fields from dashboard
                 "status_title": status.get("title"),
