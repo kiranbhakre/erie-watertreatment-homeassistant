@@ -1,14 +1,32 @@
 # Erie Water Treatment IQ26 — Home Assistant Integration
 
+<p align="center">
+  <img src="img/logo.png" alt="Erie Water Softener" width="96">
+</p>
+
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2023.1%2B-blue.svg)](https://www.home-assistant.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A Home Assistant custom integration for **Erie IQ26 water softeners** that connect via the Erie Connect (Pentair) cloud API.
+A Home Assistant custom integration for **Erie IQ26 water softeners** managed via the **Connect My Softener** app (Erie Connect / Pentair cloud API).
 
 Polls the cloud API every 120 seconds and exposes 15 sensors and 6 binary sensors — including remaining softening capacity, days until regeneration, water consumption for the Energy Dashboard, and per-category warning binary sensors.
 
 > Forked from [tgebarowski/erie-watertreatment-homeassistant](https://github.com/tgebarowski/erie-watertreatment-homeassistant) and extended with additional sensors, device page support, and HACS compatibility.
+
+---
+
+## Compatibility
+
+| | |
+|---|---|
+| **Mobile app** | Connect My Softener (iOS / Android) |
+| **Cloud service** | Erie Connect (Pentair) |
+| **Supported device** | Erie IQ26 water softener |
+| **Protocol** | Cloud polling every 120 s — no local LAN access required |
+
+This integration uses the same **Erie Connect** cloud account as the Connect My Softener app.
+If your softener is already set up and visible in the app, it works here immediately — no extra registration needed.
 
 ---
 
@@ -50,6 +68,7 @@ Polls the cloud API every 120 seconds and exposes 15 sensors and 6 binary sensor
 1. Go to **Settings → Devices & Services → Add Integration**.
 2. Search for **Erie Water Treatment IQ26**.
 3. Enter your **Erie Connect** (Pentair) email and password.
+   > 💡 Use the same email and password you use to log in to the **Connect My Softener** app.
 4. The integration authenticates and selects the first active device automatically.
 
 The device will appear under **Settings → Devices & Services** with all sensors and binary sensors grouped on one device page.
@@ -155,8 +174,8 @@ automation: !include_dir_merge_list custom_templates/
 
 ## Requirements
 
+- **Connect My Softener** app account (Erie Connect / Pentair login)
 - **Home Assistant** 2023.1 or later
-- **Erie Connect** account (Pentair cloud login)
 - Python package [`erie-connect==0.4.4`](https://github.com/tgebarowski/erie-connect) — installed automatically by HA
 
 ---
@@ -180,7 +199,7 @@ pytest tests/ -v
 | Symptom | Fix |
 |---|---|
 | Integration not found in search | Make sure `custom_components/erie_watertreatment/` exists in your HA config dir and restart HA |
-| Login fails | Verify credentials work at [my.eriewater.com](https://my.eriewater.com) |
+| Login fails | Verify credentials work in the Connect My Softener app or at [my.eriewater.com](https://my.eriewater.com) |
 | Sensors show `unavailable` | Check HA logs for API errors; the cloud API has occasional outages |
 | Device page missing firmware / serial | These populate after the first successful poll; reload the integration if still blank |
 
@@ -190,3 +209,5 @@ pytest tests/ -v
 
 Original integration by [Tomasz Gebarowski](https://github.com/tgebarowski/erie-watertreatment-homeassistant).  
 Extended by [kiranbhakre](https://github.com/kiranbhakre) — additional sensors, device page, HACS support, unit tests.
+
+Icon by [Flaticon](https://www.flaticon.com/free-icon/water-softener_18664898).
