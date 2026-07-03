@@ -80,14 +80,11 @@ def test_water_consumption_unit():
 
 def _flow_rate_sensor(new_total, old_total_state):
     coordinator = _coordinator({"total_volume": str(new_total)})
-    mock_hass = MagicMock()
+    sensor = ErieWaterFlowRateSensor(MagicMock(), coordinator, "device_123")
     if old_total_state is not None:
-        old = MagicMock()
-        old.state = str(old_total_state)
-        mock_hass.states.get.return_value = old
-    else:
-        mock_hass.states.get.return_value = None
-    return ErieWaterFlowRateSensor(mock_hass, coordinator, "device_123")
+        sensor._prev_total = int(old_total_state)
+    sensor._on_coordinator_update()
+    return sensor
 
 
 def test_flow_rate_calculates_litres_per_hour():
@@ -161,14 +158,11 @@ def test_status_sensor_empty_unit():
 
 def _flow_sensor(current_volume, old_state_value):
     coordinator = _coordinator({"total_volume": str(current_volume)})
-    mock_hass = MagicMock()
+    sensor = ErieVolumeIncreaseSensor(MagicMock(), coordinator, "total_volume", "flow", "L")
     if old_state_value is not None:
-        old = MagicMock()
-        old.state = str(old_state_value)
-        mock_hass.states.get.return_value = old
-    else:
-        mock_hass.states.get.return_value = None
-    return ErieVolumeIncreaseSensor(mock_hass, coordinator, "total_volume", "flow", "L")
+        sensor._prev_value = int(old_state_value)
+    sensor._on_coordinator_update()
+    return sensor
 
 
 def test_flow_sensor_calculates_delta():

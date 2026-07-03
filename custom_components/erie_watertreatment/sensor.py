@@ -195,6 +195,8 @@ class ErieWaterFlowRateSensor(SensorEntity):
         self.coordinator = coordinator
         self._device_id = device_id
         self._device_name = device_name
+        self._prev_total = None
+        self._rate = 0
 
     @property
     def unique_id(self):
@@ -211,21 +213,24 @@ class ErieWaterFlowRateSensor(SensorEntity):
 
     @property
     def native_value(self):
-        """Return instantaneous flow rate in L/h."""
+        return self._rate
+
+    async def async_added_to_hass(self):
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._on_coordinator_update)
+        )
+
+    def _on_coordinator_update(self):
         if self.coordinator.data is None:
-            return 0
-        new_total = int(self.coordinator.data["total_volume"])
-        # Look up the previous total from the HA state machine
-        old_state = self.hass.states.get(f"sensor.{DOMAIN}_total_volume")
-        if old_state is None or old_state.state in ("unknown", "unavailable"):
-            return 0  # First run — no previous reading to compare against
+            return
         try:
-            old_total = int(old_state.state)
-        except (ValueError, TypeError):
-            return 0
-        # Clamp to 0 to prevent negative rates after a counter reset
-        delta = max(0, new_total - old_total)
-        return round(delta * (3600 / self._POLL_SECONDS), 1)
+            new_total = int(self.coordinator.data["total_volume"])
+        except (ValueError, KeyError, TypeError):
+            return
+        if self._prev_total is not None:
+            delta = max(0, new_total - self._prev_total)
+            self._rate = round(delta * (3600 / self._POLL_SECONDS), 1)
+        self._prev_total = new_total
 
     async def async_update(self):
         await self.coordinator.async_request_refresh()
@@ -258,6 +263,8 @@ class ErieVolumeIncreaseSensor(Entity):
         self.unit = unit
         self._device_id = device_id
         self._device_name = device_name
+        self._prev_value = None
+        self._delta = 0
 
     @property
     def name(self):
@@ -272,14 +279,7 @@ class ErieVolumeIncreaseSensor(Entity):
     @property
     def state(self):
         """Return litres consumed since the last coordinator refresh."""
-        sensor_entity_id = f"sensor.{DOMAIN}_{self.info_type}"
-        old_state = self.hass.states.get(sensor_entity_id)
-        _LOGGER.debug(f"{sensor_entity_id}: data={self.coordinator.data} old={old_state}")
-        if self.coordinator.data and self.info_type in self.coordinator.data and old_state:
-            old_value = self._to_int(old_state.state)
-            new_value = self._to_int(self.coordinator.data[self.info_type])
-            return new_value - old_value
-        return 0
+        return self._delta
 
     @property
     def unit_of_measurement(self):
@@ -289,6 +289,22 @@ class ErieVolumeIncreaseSensor(Entity):
     def state_class(self):
         # Delta value — fluctuates up and down each poll, so MEASUREMENT is correct
         return "measurement"
+
+    async def async_added_to_hass(self):
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._on_coordinator_update)
+        )
+
+    def _on_coordinator_update(self):
+        if self.coordinator.data is None or self.info_type not in self.coordinator.data:
+            return
+        try:
+            new_value = self._to_int(self.coordinator.data[self.info_type])
+        except (ValueError, TypeError):
+            return
+        if self._prev_value is not None:
+            self._delta = max(0, new_value - self._prev_value)
+        self._prev_value = new_value
 
     def _to_int(self, value):
         """Parse a value that may be '1234 L' or '1234' to int."""
